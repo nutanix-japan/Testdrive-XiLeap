@@ -1,8 +1,8 @@
-.. title:: FRICTIONLESS DR WITH XI LEAP
+.. title:: Frictionless DR with Xi Leap
 
 .. toctree::
   :maxdepth: 2
-  :caption: FRICTIONLESS DR WITH XI LEAP
+  :caption: Frictionless DR with Xi Leap
   :name: _xileap
   :hidden:
 
