@@ -15,255 +15,255 @@
   :hidden:
 
 ---------------------
-My Recovery Deep Dive
+Disaster Recovery ディープダイブ
 ---------------------
 
-Legacy disaster recovery configurations, which are created with Prism Element, use protection domains and third-party integrations to protect VMs, and they replicate data between on- premises Nutanix clusters. Protection domains provide limited flexibility in terms of supporting operations such as VM boot order and require you to perform manual tasks to protect new VMs as an application scales up.
+従来のPrism Elementでのディザスターリカバリー構成は、保護ドメインとサードパーティの統合を使用してVMを保護し、オンプレミスのNutanixクラスター間でデータを複製します。 保護ドメインは、VMの起動順序を制御するなどのサポート操作の点で制限があり、アプリケーションの拡張などで新しいVMを保護するためには手動のタスクを実行する必要があります。
 
-Leap uses an entity-centric approach and runbook-like automation to recover applications. It uses categories to group the entities to be protected and to automate the protection of new entities as the application scales. Application recovery is more flexible with network mappings, configurable stages to enforce a boot order, and optional inter-stage delays. Application recovery can also be validated and tested without affecting production workloads. All the configuration information that an application requires upon failover are synchronized to the recovery location.
+Leapは、エンティティ中心のアプローチとRunbookのような自動化を使用して、アプリケーションを回復します。 カテゴリを使用して、保護するエンティティをグループ化し、アプリケーションのスケーリングに応じて新しいエンティティの保護を自動化します。アプリケーションの復旧は、ネットワークマッピング、起動の順序や起動までのタイマー設定など柔軟に対応可能です。本番ワークロードに影響を与えることなく検証およびテストすることもできます。 フェイルオーバー時にアプリケーションが必要とするすべての構成情報はリカバリ先に同期されています。
 
-You can use Leap between two physical data centers or between a physical data center and Xi Cloud Services. Leap works with pairs of physically isolated locations called availability zones. One availability zone serves as the primary location for an application while a paired availability zone serves as the recovery location. While the primary availability zone is an on-premises Prism Central instance, the recovery availability zone can be either on-premises or in Xi Cloud Services.
+2つの物理データセンター間、または物理データセンターとXi Leap Services間でLeapを使用できます。 Leapは、アベイラビリティーゾーンと呼ばれる物理的に分離された場所のペアで機能します。 1つのアベイラビリティーゾーンがアプリケーションのプライマリロケーションとして機能し、ペアのアベイラビリティーゾーンがリカバリロケーションとして機能します。 プライマリアベイラビリティゾーンはオンプレミスのPrism Centralインスタンスですが、リカバリアベイラビリティゾーンはオンプレミスまたはXi Leap Servicesのいずれかにすることができます。
 
-**In this lab you will explore Xi Leap, configuring a Protection Policy, building a Recovery Plan, evaluating networking considerations, and perform a failover.**
+**このラボでは、Xi Leap、保護ポリシーの構成、回復計画の作成、ネットワークの考慮事項の評価、フェイルオーバーの実行について学びます。**
 
 .. _accessingleaplab:
 
-Accessing Your Lab Environment
+ラボ環境へのアクセス
 ++++++++++++++++++++++++++++++
 
-This lab requires both a Nutanix Xi Leap cluster and a traditional on-premises Nutanix cluster.
+このラボでは、Nutanix Xi Leapクラスターと従来のオンプレミスNutanixクラスターの両方が必要です。
 
-You can access your environments by navigating to https://access.nutanixtestdrive.com in your browser after clicking the link in your e-mail.
+電子メールのリンクをクリックし、開いたブラウザでhttps://access.nutanixtestdrive.comに移動すると、環境にアクセスできます。
 
-In the table, look for **BCDR Deep Dive**.
+**BCDR Deep Dive** を確認します。
 
-- The **Launch** button will connect you to the On-Prem Prism Central
-- The **Xi** button will connect you to the Xi Leap side.
+- **Launch** ボタンをクリックすると On-Prem Prism Centralに接続します
+- **Xi** ボタンをクリックすると Xi Leap ダッシュボードに接続します
 
 .. figure:: images/access_dashboard.png
 
-You can also access manually by the following URLs:
+次のURLから手動でアクセスすることもできます:
 
-- On-Prem Prism Central: td**xxxxxxxxxx**.nutanixtestdrive.com/console/ (where **xxxxxxxxxx** is specific to your environment)
+- オンプレの Prism Central: td**xxxxxxxxxx**.nutanixtestdrive.com/console/ (**xxxxxxxxxx** の部分がアカウント固有になります)
 - Xi Leap: td**xxxxxxxxxx**-xi.nutanixtestdrive.com/xi/#page/xi_dashboard
 
 
-Verifying Cluster Pairing
+クラスタのペアリングの確認
 +++++++++++++++++++++++++
 
-**Availability Zones** represent physically separate groups of resources, whether that be Nutanix clusters across different sites, or Xi Cloud Services environments. In order to replicate between Availability Zones, your source cluster must first be paired to the target Prism Central or Xi environment.
+**Availability Zones** 2つのサイトにまたがるNutanixクラスタ、またはXi Leap環境のどちらも、物理的に別のリソースグループを表します。 アベイラビリティーゾーン間で複製するには、最初にソースクラスタをターゲットのPrism CentralまたはXi Leap環境とペアにする必要があります。
 
-#. In your **On-Prem Prism Central**, click :fa:`bars` **> Administration > Availability Zones**.
+#. **オンプレのPrism Central**で、 :fa:`bars` **> Administration > Availability Zones** をクリックします。
 
    .. figure:: images/new.png
 
-#. Note that your **On-Prem** cluster has already been paired with the **US-EAST-1A** cloud environment.
+#. **オンプレ** のクラスタは既にXi Leap上の **US-EAST-1A** とペアリングされています。
 
-#. Optionally, click **Connect to Availability Zone** to see what details are required to pair a new cluster or Xi Cloud environment.
+#. 必要に応じて **Connect to Availability Zone** をクリックして、どのような設定がペアリングに必要か確認します。
 
-Creating Categories
+カテゴリの作成
 +++++++++++++++++++
 
-In **Prism Central**, a **Category** is a key value pair. Categories are assigned to entities (such as VMs, Networks, or Images) based on some criteria (Location, Production-level, App Name, etc.). Different policies can then be mapped to categories, applying to all VMs with the appropriate assigned values.
+**Prism Central**の、 **Category** はキーバリューペアです。 カテゴリは、いくつかの基準（場所、製品レベル、アプリ名など）に基づいてエンティティ（VM、ネットワーク、イメージなど）に割り当てられます。 次に、さまざまなポリシーをカテゴリにマッピングして、適切な値を持つカテゴリをVMに適用できます。
 
-For example, you might have a Department category that includes values such as Engineering, Finance, and HR. In this case you could create one backup policy that applies to Engineering and HR and a separate (more stringent) backup policy that applies to just Finance. Categories allow you to implement a variety of policies across entity groups, and Prism Central allows you to quickly view any established relationships.
+たとえば、エンジニアリング、経理、人事などの値を持つ部門ごとのカテゴリがあるとします。 この場合、エンジニアリングと人事に適用される1つのバックアップポリシーと、財務のみに適用される別の（より厳格な）バックアップポリシーを作成できます。 カテゴリを使用すると、エンティティグループ全体にさまざまなポリシーを実装でき、Prism Centralからすべてのマッピング情報を確認できます。
 
-#. In your **On-Prem Prism Central**, click :fa:`bars` **> Virtual Infrastructure > Categories**.
+#.  **オンプレの Prism Central** 上で :fa:`bars` **> Virtual Infrastructure > Categories** をクリックします。
 
    .. figure:: images/4.png
 
-#. Select the **Demo** category and click **Actions > Update**.
+#. **Demo** カテゴリを選択し、 **Actions > Update** をクリックします。
 
    .. figure:: images/5.png
 
-#. Observe the category already has 3 available values. Click the :fa:`plus-circle` icon beside the last value to add a new value.
+#. カテゴリにすでに3つの値が設定されていることを確認します。 最後の値の横にある：fa： `plus-circle`アイコンをクリックして、新しい値を追加します。
 
    .. figure:: images/add_category.png
 
-#. In the **Values** column type in **App-4** and click **Save**.
+#. **Values** の列で **App-4** と入力して **Save** をクリックします。
 
    .. figure:: images/6.png
 
    Now you'll need to assign your category to an entity.
 
-#. Click :fa:`bars` **> Virtual Infrastructure > VMs**.
+#. :fa:`bars` **> Virtual Infrastructure > VMs** をクリックします。
 
-#. Take note of the IP addresses for the deployed VMs.
+#. デプロイされたVMのIPアドレスをメモします。
 
-#. Click the checkbox next to the **App-4** VM and click **Actions > Manage Categories**.
+#. **App-4** VMの横にあるチェックボックスをクリックし、[**Actions]> [Manage Categories**] をクリックします。
 
    .. figure:: images/manage_categories.png
 
-#. In the search field, specify **Demo: App-4** and click **Save** to apply the category to the VM.
+#. 検索フィールドで、 **Demo: App-4** を指定し **Save** をクリックして、カテゴリをVMに適用します。
 
    .. figure:: images/7.png
 
-Updating Protection Policy
+保護ポリシーの更新
 ++++++++++++++++++++++++++
 
-A **Protection Policy** defines the desired RPO and snapshot policy.
+A **Protection Policy** は目的のRPOとスナップショットポリシーを定義します。
 
-#. In your **On-Prem Prism Central**, click :fa:`bars` **> Policies > Protection Policies**.
+#. **オンプレのPrism Central** 上で、 :fa:`bars` **> Policies > Protection Policies** をクリックします。
 
-#. Click the checkbox next to the existing policy, **AppPR**, and click **Actions > Update**.
+#. 既存ポリシーの **AppPR** の横のチェックボックスを選択し、 **Actions > Update** をクリックします。
 
    .. figure:: images/8.png
 
-#. Observe the different options for remote and local snapshot retention:
+#. リモートとローカルのスナップショット保持に関するオプションを確認します:
 
    - **Linear**
 
-      Implements a simple, linear retention scheme at both local and remote sites. If you set the retention number for a given site to n, the n most recent snapshots are retained at that site. For example, if the RPO is one hour and theretention number for the local site is 48, the 48 most recent snapshots are retained at any given time.
+      ローカルサイトとリモートサイトの両方で、シンプルなスナップショット管理方法を利用します。 特定のサイトの保持数をnに設定すると、n個の最新のスナップショットがそのサイトに保持されます。 たとえば、RPOが1時間で、ローカルサイトの保持数が48の場合、48個の最新のスナップショットが常に保持されます。
 
    - **Roll-up**
 
-      Rolls up the oldest snapshots for the specified RPO interval into a single snapshot when the next higher interval is reached, all the way up to the retention period specified for a site. For example, if you select roll-up retention, set the RPO to one hour, and set the retention time at a site to one year, the twenty four oldest hourly backups at that site are rolled up into a single daily backup at the completion of every 24 hours, the seven oldest daily backups are rolled up into a single weekly backup at the completion of every week, the four oldest weekly backups are rolled up into a single backup at the completion of every month, and the twelve oldest monthly backups are rolled up into a single backup at the completion of every year. At the end of one year, that site has 24 of the most recent hourly backups, seven of the most recent daily backups, four of the most recent weekly backups, twelve of the most recent monthly backups, and one yearly backup. The snapshots that are used to create a rolled-up snapshot are discarded.
+      指定されたRPO間隔の古いスナップショットが一定の期間経過したときに、指定された保持期間の単一のスナップショットにロールアップされます。たとえばロールアップ保持でRPOを1時間に設定、サイトでの保持時間を1年に設定した場合、そのサイトで最も古い24個の毎時バックアップは、完了時に1つの日次バックアップにロールアップされます。 さらに24時間ごとに、最も古い7つの毎日のバックアップは、毎週の完了時に1つの毎週バックアップにロールアップされ、4つの最も古い毎週のバックアップは、毎月の完了時に1つのバックアップにロールアップされ、12の最も古い毎月のバックアップ毎年の完了時に単一のバックアップにロールアップされます。1年後にはそのサイトに最新の毎時バックアップが24、最新の日次バックアップが7、最新の週次バックアップが4、最新の月次バックアップが12、年次バックアップが1つあります。ロールアップスナップショットの作成に使用されたスナップショットは破棄されます。
 
-   Next, you'll include your new category in the Protection Policy, ensuring all **App-4** tagged VMs share this policy.
+   次に新しいカテゴリが保護ポリシーに設定され、すべての **App-4** が設定されたVMにポリシーが共有されるようにします。
 
-#. Click **Update** and specify **Demo: App-4** in the **Add Categories** dialog.
+#. **Update** をクリックし、**Add Categories** で **Demo: App-4** を指定します。
 
    .. figure:: images/9.png
 
-#. Click **Save**.
+#. **Save** をクリックします。
 
-Updating Recovery Plan
+リカバリプランの更新
 ++++++++++++++++++++++
 
-A **Recovery Plan** defines the runbook for a failover event, including power on sequences and network mappings.
+A **Recovery Plan** は、電源投入の順番やネットワークマッピングなど、フェイルオーバーのためのRunbookを定義します。
 
-#. In your **On-Prem Prism Central**, click :fa:`bars` **> Policies > Recovery Plan**.
+#. **オンプレの Prism Central**で、 :fa:`bars` **> Policies > Recovery Plan** をクリックします。
 
-#. Click the checkbox next to the existing policy, **AppRP**, and click **Actions > Update**.
+#. 既存ポリシーの **AppRP** の横のチェックボックスを選択し、 **Actions > Update** をクリックします。
 
    .. figure:: images/10.png
 
-#. Click **Next**. Observe the existing stages for powering on VMs as part of the recovery plan.
+#. **Next** をクリックします。リカバリプランとして、事前に設定されているVMの電源をオンにする順序を確認します。
 
-#. Under **Power On Sequence**, click **Add New Stage** to add a 4th stage.
+#. **Power On Sequence** の下の **Add New Stage** をクリックして4番目のステージを追加します。
 
    .. figure:: images/11.png
 
-#. To add a delay between two stages, click **Add Delay** between the two stages and specify a value in **Seconds**. Click **Add**.
+#. ステージ間に遅延を追加するには2つのステージ間の **Add Delay** をクリックし、 **Seconds** の値を入力した後、 **Add** をクリックします。
 
-#. Click **Add Entities** under your new stage.
+#. 新しいステージの下にある **Add Entities** をクリックします。
 
    .. figure:: images/add_entities0.png
 
-#. Add the **Demo: App-4** category by searching for the **Demo** category (press Enter to Search), then check the box and click **Add**.
+#. **Demo** カテゴリで **Demo: App-4** を探して選択し、 **Add** をクリックします。
 
    .. figure:: images/add_entities.png
 
-#. Click **Next**.
+#. **Next** をクリックします。
 
-   **Network Settings** enables you to map networks in the local availability zone (the primary location) to networks at the recovery location. When failover occurs and VMs are recovered at the recovery location, they are placed in the network that is mapped to their network on the primary location.
+   **Network Settings** を使用すると、ローカルアベイラビリティゾーン（プライマリロケーション）のネットワークをリカバリロケーションのネットワークにマップできます。 フェイルオーバーが発生し、VMがリカバリ場所でリカバリされると、プライマリロケーションのネットワークにマップされているネットワークに配置されます。
 
    .. figure:: images/12.png
 
-   Local availability zone on the left. On the left, you specify the VM Networks used for both **Production** and **Test** failover events. These are mapped to corresponding **Production** and **Test** networks in Xi Cloud. If the recovery location is an on-premises availability zone, you would then specify the corresponding VM Networks for that site.
+   左側はローカルにあるアベイラビリティゾーンになります。 左側で、**Production** と **Test** の両方のフェイルオーバーイベントに使用されるVMネットワークを指定します。 これらは、Xi Leap側の **Production** および **Test** ネットワークにマッピングされます。 復旧場所がオンプレミスのアベイラビリティゾーンである場合は、そのサイトに対応するVMネットワークを指定します。
 
-   Optionally, you can specify a gateway IP address and prefix. With Xi Cloud Services, you either select a subnet that you have created, or you can enter the gateway IP address and prefix length. If you specify a gateway IP address and prefix length, the recovery plan dynamically creates the subnet on failover, and it cleans up the dynamically created subnets after failback. This functionality is a key benefit of DR with Xi Leap, as each VM will be able to maintain its original IP address when failing over to Xi Cloud, drastically reducing runbook scripting to re-configure applications.
+   オプションでゲートウェイのIPアドレスとプレフィックスを指定できます。 Xi Leapでは、作成したサブネットを選択するか、ゲートウェイのIPアドレスとプレフィックス長を入力できます。 ゲートウェイIPアドレスとプレフィックス長を指定した場合、リカバリプランはフェイルオーバー時にサブネットを動的に作成し、フェイルバック後に動的に作成されたサブネットをクリーンアップします。 この機能は、Xi Leapを使用したDRの主要な利点です。XiCloudにフェイルオーバーするときに各VMが元のIPアドレスを維持できるため、アプリケーションを再構成するためのRunbookスクリプトが大幅に削減されます。
 
-   You can also assign VMs **Floating IPs**. This will provide direct access to the VM from the public Internet. Upon failover the public IP would get assigned to the VM in a NAT configuration.
+   VMに **Floating IP** を割り当てることもできます。 これにより、パブリックインターネットからVMに直接アクセスできます。 フェイルオーバー時に、パブリックIPはNAT構成でVMに割り当てられます。
 
-Exploring Xi Cloud Portal
+Xi Leapポータルの確認
 +++++++++++++++++++++++++
 
-#. Return to your Xi Cloud session using the Xi Leap link in :ref:`accessingleaplab`.
+#. :ref:`accessingleaplab` のXi Leapリンクを使用してXi Leapポータルに戻ります。
 
-#. Take some time to explore the Xi Cloud interface, comparing it to your on-premises Prism Central experience.
+#. Xi Leapポータルに表示されている情報を見て、オンプレミスのPrism Centralと比較してください。
 
-#. Click **Explore > Virtual Private Clouds**.
+#. **Explore > Virtual Private Clouds** をクリックします。
 
-   This is where you can can see your VPCs on Xi Cloud. If you click on one of **Production** or **Test** you can configure subnets, VPNS, etc.
+   これは、Xi LeapでVPCを確認できる場所です。 **Production** または **Test** のいずれかをクリックすると、サブネットやVPNなどを構成できます。
 
-#. Click on **Production**.
+#. **Production** をクリックします。
 
-   You can create up to 100 different subnets and build policy-based routing rules between them.
+   最大100個の異なるサブネットを作成し、それらの間にポリシーベースのルーティングルールを構築できます。
 
-#. Click on **Manage VPN**.
+#. **Manage VPN** をクリックします。
 
    .. figure:: images/manage_vpn.png
 
-#. Click **Next** to view the configuration requirements required to configure a VPN.
+#. **Next** をクリックして、VPNの構成に必要な構成要件を表示します。
 
-   While networking can be the biggest challenge of any hybrid cloud deployment, Nutanix strives to simplify this process (and reduce unnecessary professional services costs) by providing automatic configuration options. Stepping through the automatic configuration wizard will also provide all of the commands required to complete the configuration of your on-premises environment.
+   ネットワーキングはあらゆるハイブリッドクラウド展開の最大の課題となる可能性がありますが、Nutanixは自動構成オプションを提供することにより、このプロセスの簡素化（および不要な専門サービスコストの削減）に努めています。 自動構成ウィザードをステップ実行すると、オンプレミス環境の構成を完了するために必要なすべてのコマンドも提供されます。
 
-#. Click the **X** in the top right corner to close the configuration wizard.
+#. 右上にある **Xボタン** をクリックしてコンフィグレーションウィザードを閉じます。
 
-#. Click **Yes** if prompted.
+#. 本当に閉じるか確認された場合は **Yes** をクリックします。
 
-#. Click the **X** in the top right corner to close the VPC settings screen.
+#. 右上にある **Xボタン** をクリックしてVPC設定画面を閉じます。
 
-Performing A Failover
+フェイルオーバーの実行
 +++++++++++++++++++++
 
-Leap supports the following types of failover operations:
+Leapは、次のタイプのフェイルオーバー操作をサポートしています。:
 
 - **Test Failover**
 
-  You perform a test failover when you want to test a recovery plan. When you perform a test failover, the VMs are started in the virtual network designated for testing purposes at the recovery location (a manually created virtual network on on-premises clusters and a virtual subnet in the Test VPC in Xi Cloud Services). However, the VMs at the primary location are not affected. Test failovers rely on the presence of VM snapshots at the recovery location.
+  リカバリプランをテストする場合は、テストフェイルオーバーを実行します。 テストフェイルオーバーを実行すると、VMはテスト目的でリカバリ場所で指定された仮想ネットワーク（オンプレミスクラスターで手動で作成された仮想ネットワークとXi LeapのテストVPCの仮想サブネット）で起動されます。 ただし、プライマリロケーションのVMは影響を受けません。 テストフェールオーバーは、復旧場所にVMスナップショットがあるかどうかに依存します。
 
 - **Planned Failover**
 
-  You perform planned failover when a disaster that disrupts services is predicted at the primary location. When you perform a planned failover, the recovery plan first creates a snapshot of each VM, replicates the snapshots at the recovery location, and then starts the VMs at the recovery location. Therefore, for a planned failover to succeed, the VMs must be available at the primary location. If the failover process encounters errors, you can resolve the error condition. After a planned failover, the VMs no longer run in the source availability zone.
+  プライマリロケーションでサービスを中断させる災害が予測されたときに、計画的なフェールオーバーを実行します。 計画的フェイルオーバーを実行すると、リカバリプランは最初に各VMのスナップショットを作成し、スナップショットをリカバリ場所に複製してから、リカバリ場所でVMを起動します。 したがって、計画的なフェイルオーバーが成功するには、VMがプライマリロケーションで使用可能である必要があります。 フェイルオーバープロセスでエラーが発生した場合は、エラー状態を解決できます。 計画的なフェイルオーバーの後、VMはソースアベイラビリティーゾーンで実行されなくなります。
 
-  After failover, replication begins in the reverse direction. For a planned failover the MAC address will be maintained.
+  フェイルオーバー後、レプリケーションは逆方向に始まります。 計画的なフェイルオーバーの場合、MACアドレスは維持されます。
 
 - **Unplanned Failover**
 
-  You perform unplanned failover when a disaster has occurred at the primary location. In an unplanned failover, you can expect some data loss to occur. The maximum data loss possible is equal to the RPO configured in the protection policy or the data that was generated after the last manual backup for a given VM. In an unplanned failover, by default, VMs are recovered from the most recent snapshot. However, you can recover from an earlier snapshot by selecting a date and time. Any errors are logged but the execution of the failover continues.
+  プライマリロケーションで災害が発生した場合、計画外のフェイルオーバーを実行します。 計画外のフェイルオーバーでは、データの損失が発生することが予想されます。 可能な最大のデータ損失は、保護ポリシーで構成されたRPO、または特定のVMの最後の手動バックアップ後に生成されたデータと同じです。 計画外のフェイルオーバーでは、デフォルトで、VMは最新のスナップショットから復旧されます。 ただし、日付と時刻を選択することで、以前のスナップショットから回復できます。 エラーはログに記録されますが、フェイルオーバーの実行は続行されます。
 
-  After failover, replication begins in the reverse direction.
+  フェイルオーバー後、レプリケーションは逆方向に始まります。
 
-In this exercise you will be performing a **Planned Failover**.
+この演習では、**計画されたフェイルオーバー** を実行します.
 
   .. note::
 
-    You can perform an unplanned failover operation only if snapshots have been replicated to the recovery availability zone. At the recovery location, failover operations cannot use snapshots that were created locally in the past. For example, if you perform a planned failover from the primary availability zone AZ1 to recovery location AZ2 (Xi Cloud Services) and then attempt an unplanned failover from AZ2 to AZ1, recovery will succeed at AZ1 only if snapshots were replicated from AZ2 to AZ1 after the planned failover operation. The unplanned failover operation cannot perform recovery based on snapshots that were created locally when the entities were running in AZ1.
+    スナップショットがリカバリアベイラビリティゾーンに複製されている場合にのみ、計画外のフェイルオーバー操作を実行できます。リカバリ場所では、フェイルオーバー操作は過去にローカルで作成されたスナップショットを使用できません。たとえば、プライマリアベイラビリティーゾーンAZ1から復旧場所AZ2（Xi Leap）への計画されたフェイルオーバーを実行してから、AZ2からAZ1への計画外のフェイルオーバーを試行した場合、
 
-#. From **Xi Cloud**, select **Explore > Recovery Plans**.
+#. **Xi Leapポータル**から **Explore > Recovery Plans** をクリックします。
 
-#. Select your **AppRP** plan and click **Actions > Failover**.
+#. リカバリプラン **AppRP** を選択し、 **Actions > Failover** をクリックします。
 
    .. figure:: images/14.png
 
-#. Note the number of entities to be failed over as part of the plan. Click **Failover**.
+#. このプランでフェイルオーバーの対象となるエンティティの数を確認して、 **Failover** をクリックしてください。
 
    .. figure:: images/15.png
 
-#. Once the recovery plan updates to **Running**, click **AppRP** and select **Tasks** to view the current status. Continue to observe the failover, taking note of the different boot stages.
+#. リカバリプランが[**Running**]に更新されたら、[**AppRP**]をクリックし、[**Task**]を選択して現在のステータスを表示します。 さまざまなブートステージに注意して、フェイルオーバーの監視を続けます。
 
    .. figure:: images/16.png
 
-#. Once the failover operation has completed, select **VMs** from the sidebar.
+#. フェイルオーバー操作が完了したら、サイドバーから[**VM**]を選択します。
 
-#. Note that the 4 VM's are now running on the Xi Cloud.
+#. 4つのVMがXi leap上で実行されていることを確認してください。
 
    .. figure:: images/18.png
 
-Failing Back
+フェイルバック
 ++++++++++++
 
-Not to be confused with failing up, failing back to the primary site, including the changes that took place while running at the recovery site, is a critical part of the DR workflow.
+リカバリサイトでの実行中に発生した変更を含め、プライマリサイトへのフェイルバックはDRワークフローの重要な部分です。
 
-#. Return to your **On-Prem Prism Central** and click :fa:`bars` **> Policies > Recovery Plan**.
+#. **オンプレのPrism Central** に戻り :fa:`bars` **> Policies > Recovery Plan** をクリックします。
 
-#. Select your **AppRP** plan and click **Actions > Failover**.
+#. **AppRP** プランを選択し、 **Actions > Failover** をクリックします。
 
-#. When failing back, your **Recovery Location** should correspond to your primary site. Click **Failover**.
+#. フェイルバックする場合、**Recovery Location**はプライマリサイトに向いている必要があります。 [**Failover**] をクリックします。
 
-#. Click on your recovery plan and note you have access to the same UI in Prism Central to monitor the failback operation.
+#. リカバリプランをクリックし、Prism Centralの同じUIにアクセスしてフェールバック操作を監視できることを確認します。
 
-#. Once the recovery plan has completed, validate the VMs are once again running.
+#. リカバリプランが完了したら、VMが再度実行されていることを確認します。
 
-Takeaways
+まとめ
 +++++++++
 
-- Xi Leap delivers fast and easy cloud DR capabilities to on-premises Nutanix clusters
-- Xi Leap drastically simplifies networking requirements by providing automated VPN setup
-- Having the same networks available in Xi Cloud drastically simplify VM runbooks
-- Xi Leap supports test, planned, and unplanned failover operations
-- Failback operations from Xi Leap require no special changes to your runbooks
-- Prism Central and Xi Cloud provide a unified management experience for managing and monitoring DR operations
-- Leap can also be used to deliver native DR capabilities between multiple on-premises Nutanix AHV clusters
+- Xi Leapは、オンプレミスのNutanixクラスターに高速で簡単なクラウドDR機能を提供します
+- Xi Leapは、自動VPNセットアップを提供することにより、ネットワーク要件を大幅に簡素化します
+- Xi Leapで同じネットワークを利用できるため、VM Runbookが大幅に簡素化されます
+- Xi Leapは、テスト、計画済み、および計画外のフェイルオーバー操作をサポートします
+- Xi Leapからのフェイルバック操作では、運用手順書に特別な変更は必要ありません
+- Prism CentralとXi Leapは、DR操作を管理および監視するための統合管理エクスペリエンスを提供します
+- Leapは、複数のオンプレミスNutanix AHVクラスター間でネイティブDR機能を提供するためにも使用できます
