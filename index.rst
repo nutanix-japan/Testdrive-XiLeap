@@ -44,8 +44,8 @@ Leapは、エンティティ中心のアプローチとRunbookのような自動
 
 次のURLから手動でアクセスすることもできます:
 
-- オンプレの Prism Central: td**xxxxxxxxxx**.nutanixtestdrive.com/console/ (**xxxxxxxxxx** の部分がアカウント固有になります)
-- Xi Leap: td**xxxxxxxxxx**-xi.nutanixtestdrive.com/xi/#page/xi_dashboard
+- オンプレの Prism Central: td **xxxxxxxxxx** .nutanixtestdrive.com/console/ (**xxxxxxxxxx** の部分がアカウント固有になります)
+- Xi Leap: td **xxxxxxxxxx** -xi.nutanixtestdrive.com/xi/#page/xi_dashboard
 
 
 クラスタのペアリングの確認
@@ -132,7 +132,7 @@ Leapは、エンティティ中心のアプローチとRunbookのような自動
 
 A **Recovery Plan** は、電源投入の順番やネットワークマッピングなど、フェイルオーバーのためのRunbookを定義します。
 
-#. **オンプレの Prism Central**で、 :fa:`bars` **> Policies > Recovery Plan** をクリックします。
+#. **オンプレの Prism Central** で、 :fa:`bars` **> Policies > Recovery Plan** をクリックします。
 
 #. 既存ポリシーの **AppRP** の横のチェックボックスを選択し、 **Actions > Update** をクリックします。
 
@@ -222,7 +222,7 @@ Leapは、次のタイプのフェイルオーバー操作をサポートして�
 
     スナップショットがリカバリアベイラビリティゾーンに複製されている場合にのみ、計画外のフェイルオーバー操作を実行できます。リカバリ場所では、フェイルオーバー操作は過去にローカルで作成されたスナップショットを使用できません。たとえば、プライマリアベイラビリティーゾーンAZ1から復旧場所AZ2（Xi Leap）への計画されたフェイルオーバーを実行してから、AZ2からAZ1への計画外のフェイルオーバーを試行した場合、
 
-#. **Xi Leapポータル**から **Explore > Recovery Plans** をクリックします。
+#.  **Xi Leapポータル** から **Explore > Recovery Plans** をクリックします。
 
 #. リカバリプラン **AppRP** を選択し、 **Actions > Failover** をクリックします。
 
