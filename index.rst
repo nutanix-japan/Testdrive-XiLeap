@@ -53,11 +53,11 @@ Leapは、エンティティ中心のアプローチとRunbookのような自動
 
 **Availability Zones** 2つのサイトにまたがるNutanixクラスタ、またはXi Leap環境のどちらも、物理的に別のリソースグループを表します。 アベイラビリティーゾーン間で複製するには、最初にソースクラスタをターゲットのPrism CentralまたはXi Leap環境とペアにする必要があります。
 
-#.  **オンプレのPrism Central** で、 :fa:`bars` **> Administration > Availability Zones** をクリックします。
+#. **オンプレのPrism Central** で、 :fa:`bars` **> Administration > Availability Zones** をクリックします。
 
 .. figure:: images/new.png
 
-#.  **オンプレ** のクラスタは既にXi Leap上の **US-EAST-1A** とペアリングされています。
+#. **オンプレ** のクラスタは既にXi Leap上の **US-EAST-1A** とペアリングされています。
 
 #. 必要に応じて **Connect to Availability Zone** をクリックして、どのような設定がペアリングに必要か確認します。
 
@@ -221,7 +221,7 @@ Leapは、次のタイプのフェイルオーバー操作をサポートして�
 .. note::
 
    スナップショットがリカバリアベイラビリティゾーンに複製されている場合にのみ、計画外のフェイルオーバー操作を実行できます。リカバリ場所では、フェイルオーバー操作は過去にローカルで作成されたスナップショットを使用できません。たとえば、プライマリアベイラビリティーゾーンAZ1から復旧場所AZ2（Xi Leap）への計画されたフェイルオーバーを実行してから、AZ2からAZ1への計画外のフェイルオーバーを試行した場合、
- 
+
 #. **Xi Leapポータル** から **Explore > Recovery Plans** をクリックします。
 
 #. リカバリプラン **AppRP** を選択し、 **Actions > Failover** をクリックします。
