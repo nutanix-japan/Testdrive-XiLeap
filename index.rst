@@ -55,7 +55,7 @@ Leapは、エンティティ中心のアプローチとRunbookのような自動
 
 #. **オンプレのPrism Central** で、 :fa:`bars` **> Administration > Availability Zones** をクリックします。
 
-.. figure:: images/new.png
+   .. figure:: images/new.png
 
 #. **オンプレ** のクラスタは既にXi Leap上の **US-EAST-1A** とペアリングされています。
 
